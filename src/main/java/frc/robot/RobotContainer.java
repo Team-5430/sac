@@ -76,6 +76,7 @@ public class RobotContainer {
                 joystick.leftBumper().onTrue(Intake.INTAKE());
                 joystick.leftBumper().onFalse(Intake.IDLE());
 
+                //test shooter bindings
                // joystick.rightTrigger().onTrue(LeftShooter.SETRPM(100)
                  //               .alongWith(RightShooter.SETRPM(100)));
 
