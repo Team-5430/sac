@@ -8,31 +8,29 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import com.pathplanner.lib.auto.NamedCommands;
-import com.pathplanner.lib.commands.FollowPathCommand;
 
 import edu.wpi.first.math.geometry.Rotation2d;
-
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import frc.robot.commands.AutoLock;
+//import frc.robot.commands.AutoLock;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.Indexer;
+//import frc.robot.subsystems.Indexer;
 import frc.robot.subsystems.fuelintake;
-import frc.robot.subsystems.shooter;
-import frc.robot.subsystems.vision;
+//import frc.robot.subsystems.shooter;
+//import frc.robot.subsystems.vision;
 
 public class RobotContainer {
 
-        //CANGE TO FEILD WHEN AT COMP
+        // CANGE TO FEILD WHEN AT COMP
 
         private final CommandXboxController joystick;
         private final fuelintake Intake;
-        private final Indexer Indexer;
+        //private final Indexer Indexer;
         private final ButtonBoardControls ButtonBoard;
         private final CommandSwerveDrivetrain drivetrain;
-        private final vision Vision;
+        //private final vision Vision;
 
         private double MaxSpeed; // kSpeedAt12Volts desired top speed
         private double MaxAngularRate; // 3/4 of a rotation per second max angular velocity
@@ -44,10 +42,10 @@ public class RobotContainer {
 
         // In RobotContainer.java
 
-        private final AutoLock autoLock;
+        //private final AutoLock autoLock;
 
-        private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
-        private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
+        //private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
+        //private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
 
         public RobotContainer() {
 
@@ -55,8 +53,8 @@ public class RobotContainer {
                 ButtonBoard = new ButtonBoardControls(Constants.ButtonBoard);
                 drivetrain = TunerConstants.createDrivetrain();
                 Intake = new fuelintake(Constants.IntakeRoller, Constants.IntakePivot, Constants.INTAKECANID);
-                Indexer = new Indexer(Constants.IndexerID);
-                Vision = new vision();
+                //Indexer = new Indexer(Constants.IndexerID);
+                //Vision = new vision();
 
                 MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
                 MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
@@ -71,49 +69,48 @@ public class RobotContainer {
                 robot = new SwerveRequest.RobotCentric()
                                 .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10%
                                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-                autoLock = new AutoLock(
+                        /*
+                                autoLock = new AutoLock(
                                 drivetrain,
                                 () -> -joystick.getLeftY() * MaxSpeed,
                                 () -> -joystick.getLeftX() * MaxSpeed);
-
-                configureBindings();  
-                
-
-
+ */
+                configureBindings();
 
         }
-//   private void namedCommands() {
+        // private void namedCommands() {
 
-//     NamedCommands.registerCommand("INTAKE", Intake.INTAKE());
-//     NamedCommands.registerCommand("IDLE", Intake.IDLE());
-//   }
+        // NamedCommands.registerCommand("INTAKE", Intake.INTAKE());
+        // NamedCommands.registerCommand("IDLE", Intake.IDLE());
+        // }
         private void configureBindings() {
-                //change all mechanismz to gunner at comp, bring button boeard
+                // change all mechanismz to gunner at comp, bring button boeard
 
                 // In configureBindings()
-                joystick.rightBumper().toggleOnTrue(autoLock);
-                joystick.rightTrigger().onTrue(LeftShooter.SHOOT(()-> Vision.getDistance())
-                        .alongWith(RightShooter.SHOOT(()-> Vision.getDistance()))
-                        .alongWith(Indexer.INDEX_IN()));
+                //joystick.rightBumper().toggleOnTrue(autoLock);
+                // joystick.rightTrigger().onTrue(LeftShooter.SHOOT(() -> Vision.getDistance())
+                //                 .alongWith(RightShooter.SHOOT(() -> Vision.getDistance()))
+                //                 .alongWith(Indexer.INDEX_IN()));
                 // joystick.leftBumper().onTrue(Intake.INTAKE());
                 // joystick.leftBumper().onFalse(Intake.IDLE());
-
-                ButtonBoard.Button7().toggleOnTrue(Intake.INTAKE()).toggleOnFalse(Intake.OUTTAKE());
-
-
-                ButtonBoard.Button11().toggleOnFalse(Indexer.INDEX_IDLE()).toggleOnTrue(Indexer.INDEXCYCLE());
-
-
+                
+                ButtonBoard.Button7().onTrue(Intake.INTAKE()).onFalse(Intake.STOP());
+                ButtonBoard.Button8().onTrue(Intake.OUTTAKE()).onFalse(Intake.STOP());
+                ButtonBoard.Button12().onTrue(Intake.IDLE());
+                //ButtonBoard.Button11().toggleOnFalse(Indexer.INDEX_IDLE()).toggleOnTrue(Indexer.INDEXCYCLE());
+ 
+                /* 
                 ButtonBoard.Button10().onTrue(LeftShooter.SET_PERCENTAGE(0.6)
-                        .alongWith(RightShooter.SET_PERCENTAGE(0.6)));
+                                .alongWith(RightShooter.SET_PERCENTAGE(0.6)));
 
                 ButtonBoard.Button10().onFalse(LeftShooter.SET_PERCENTAGE(0)
-                        .alongWith(RightShooter.SET_PERCENTAGE(0)));
-                                
-
+                                .alongWith(RightShooter.SET_PERCENTAGE(0)));
 
                 ButtonBoard.Button9().onTrue(LeftShooter.SET_PERCENTAGE(0.7)
-                        .alongWith(RightShooter.SET_PERCENTAGE(0.7)));
+                                .alongWith(RightShooter.SET_PERCENTAGE(0.7)));
+
+                                */
+                joystick.b().onTrue(Commands.runOnce(() -> drivetrain.seedFieldCentric()));
 
                 // test shooter bindings
                 // joystick.rightTrigger().onTrue(LeftShooter.SETRPM(100)
@@ -129,23 +126,33 @@ public class RobotContainer {
                  */
 
                 drivetrain.setDefaultCommand(
-                         // Drivetrain will execute this command periodically
-                        drivetrain.applyRequest(() -> field.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                                .withVelocityY(joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                                .withRotationalRate(joystick.getRightX() * MaxAngularRate)) // Drive counterclockwise with negative X (left)
-                                
+                                // Drivetrain will execute this command periodically
+                                drivetrain.applyRequest(() -> field.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive
+                                                                                                                   // forward
+                                                                                                                   // with
+                                                                                                                   // negative
+                                                                                                                   // Y
+                                                                                                                   // (forward)
+                                                .withVelocityY(joystick.getLeftX() * MaxSpeed) // Drive left with
+                                                                                               // negative X (left)
+                                                .withRotationalRate(joystick.getRightX() * MaxAngularRate)) // Drive
+                                                                                                            // counterclockwise
+                                                                                                            // with
+                                                                                                            // negative
+                                                                                                            // X (left)
+
                 );
 
                 // Idle while the robot is disabled. This ensures the configured
                 // neutral mode is applied to the drive motors while disabled.
                 final var idle = new SwerveRequest.Idle();
                 RobotModeTriggers.disabled().whileTrue(
-                        drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+                                drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
                 joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
                 joystick.b().whileTrue(drivetrain.applyRequest(
-                        () -> point.withModuleDirection(
-                                new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))));
+                                () -> point.withModuleDirection(
+                                                new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))));
 
                 // Run SysId routines when holding back/start and X/Y.
                 // Note that each routine should be run exactly once in a single log.
@@ -158,19 +165,19 @@ public class RobotContainer {
         }
 
         // public Command getAutonomousCommand() {
-        //         // Simple drive forward auton
-        //         final var idle = new SwerveRequest.Idle();
-        //         return Commands.sequence(
-        //                         // Reset our field centric heading to match the robot
-        //                         // facing away from our alliance station wall (0 deg).
-        //                         drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
-        //                         // Then slowly drive forward (away from us) for 5 seconds.
-        //                         drivetrain.applyRequest(() -> drive.withVelocityX(0.5)
-        //                                         .withVelocityY(0)
-        //                                         .withRotationalRate(0))
-        //                                         .withTimeout(5.0),
-        //                         // Finally idle for the rest of auton
-        //                         drivetrain.applyRequest(() -> idle));
+        // // Simple drive forward auton
+        // final var idle = new SwerveRequest.Idle();
+        // return Commands.sequence(
+        // // Reset our field centric heading to match the robot
+        // // facing away from our alliance station wall (0 deg).
+        // drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
+        // // Then slowly drive forward (away from us) for 5 seconds.
+        // drivetrain.applyRequest(() -> drive.withVelocityX(0.5)
+        // .withVelocityY(0)
+        // .withRotationalRate(0))
+        // .withTimeout(5.0),
+        // // Finally idle for the rest of auton
+        // drivetrain.applyRequest(() -> idle));
 
         // }
 
