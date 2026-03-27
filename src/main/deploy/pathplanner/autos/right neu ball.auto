@@ -5,24 +5,6 @@
     "data": {
       "commands": [
         {
-          "type": "path",
-          "data": {
-            "pathName": "path1.1"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "Shoot"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "path2.1"
-          }
-        },
-        {
           "type": "named",
           "data": {
             "name": "INTAKE"
@@ -31,7 +13,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "path3.1"
+            "pathName": "neu, right"
           }
         },
         {
@@ -43,13 +25,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Path4.1"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "Shoot"
+            "pathName": "neu to ali, right"
           }
         }
       ]

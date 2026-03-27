@@ -17,7 +17,7 @@ public class Robot extends TimedRobot {
     private final RobotContainer m_robotContainer;
 
     private PowerDistribution pdh;
-        
+
 
 
     public Robot() {
@@ -31,6 +31,7 @@ public class Robot extends TimedRobot {
         }
 
         pdh.setSwitchableChannel(true);
+
     }
 
     @Override
@@ -47,7 +48,11 @@ public class Robot extends TimedRobot {
     @Override
     public void disabledExit() {}
 
-   
+    @Override
+    public void autonomousInit(){
+                m_autonomousCommand = m_robotContainer.autoCommand();
+        CommandScheduler.getInstance().schedule(m_autonomousCommand);
+    }
     
 
     @Override

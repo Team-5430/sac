@@ -7,9 +7,14 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.pathplanner.lib.auto.AutoBuilder;
+
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -27,31 +32,43 @@ public class RobotContainer {
 
         private final CommandXboxController joystick;
         private final fuelintake Intake;
-        //private final Indexer Indexer;
         private final ButtonBoardControls ButtonBoard;
-        private final CommandSwerveDrivetrain drivetrain;
+        private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
         //private final vision Vision;
+        //private final Indexer Indexer;
+
+        //private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
+        //private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
+
+
 
         private double MaxSpeed; // kSpeedAt12Volts desired top speed
         private double MaxAngularRate; // 3/4 of a rotation per second max angular velocity
 
+
+        //drive commands
         private final SwerveRequest.FieldCentric field; // Use open-loop control for drive motors
         private final SwerveRequest.SwerveDriveBrake brake;
         private final SwerveRequest.PointWheelsAt point;
-        private final SwerveRequest.RobotCentric robot;
+       // private final SwerveRequest.RobotCentric robot;
 
         // In RobotContainer.java
 
         //private final AutoLock autoLock;
 
-        //private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
-        //private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
+        private final SendableChooser<Command> autoChooser;
 
         public RobotContainer() {
 
+                autoChooser = AutoBuilder.buildAutoChooser("Tests");
+                SmartDashboard.putData("Auto Mode", autoChooser);
+
                 joystick = new CommandXboxController(Constants.XboxController);
                 ButtonBoard = new ButtonBoardControls(Constants.ButtonBoard);
-                drivetrain = TunerConstants.createDrivetrain();
+
+                
+                
+                
                 Intake = new fuelintake(Constants.IntakeRoller, Constants.IntakePivot, Constants.INTAKECANID);
                 //Indexer = new Indexer(Constants.IndexerID);
                 //Vision = new vision();
@@ -66,9 +83,9 @@ public class RobotContainer {
                                                                                                            // deadband
                                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-                robot = new SwerveRequest.RobotCentric()
-                                .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10%
-                                .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+              //  robot = new SwerveRequest.RobotCentric()
+                               // .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10%
+                               // .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
                         /*
                                 autoLock = new AutoLock(
                                 drivetrain,
@@ -76,6 +93,8 @@ public class RobotContainer {
                                 () -> -joystick.getLeftX() * MaxSpeed);
  */
                 configureBindings();
+
+                
 
         }
         // private void namedCommands() {
@@ -180,5 +199,9 @@ public class RobotContainer {
         // drivetrain.applyRequest(() -> idle));
 
         // }
+
+        public Command autoCommand(){
+                return autoChooser.getSelected();
+        }
 
 }
