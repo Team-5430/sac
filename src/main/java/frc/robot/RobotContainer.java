@@ -18,13 +18,15 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-//import frc.robot.commands.AutoLock;
+import frc.robot.commands.AutoLock;
+import frc.robot.firecontrol.ProjectileSimulator;
+import frc.robot.firecontrol.ShotCalculator;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-//import frc.robot.subsystems.Indexer;
+import frc.robot.subsystems.Indexer;
 import frc.robot.subsystems.fuelintake;
-//import frc.robot.subsystems.shooter;
-//import frc.robot.subsystems.vision;
+import frc.robot.subsystems.shooter;
+import frc.robot.subsystems.vision;
 
 public class RobotContainer {
 
@@ -34,13 +36,14 @@ public class RobotContainer {
         private final fuelintake Intake;
         private final ButtonBoardControls ButtonBoard;
         private final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-        //private final vision Vision;
-        //private final Indexer Indexer;
+        private final vision Vision;
+        private final Indexer Indexer;
 
-        //private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
-        //private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
+        private shooter LeftShooter = new shooter(Constants.LeftSHOOTERouterID, Constants.LeftSHOOTERinnerID, false);
+        private shooter RightShooter = new shooter(Constants.RightSHOOTERinnerID, Constants.RightSHOOTERouterID, true);
 
-
+        // SOTM fire control solver
+        private final ShotCalculator shotCalculator;
 
         private double MaxSpeed; // kSpeedAt12Volts desired top speed
         private double MaxAngularRate; // 3/4 of a rotation per second max angular velocity
@@ -50,11 +53,9 @@ public class RobotContainer {
         private final SwerveRequest.FieldCentric field; // Use open-loop control for drive motors
         private final SwerveRequest.SwerveDriveBrake brake;
         private final SwerveRequest.PointWheelsAt point;
-       // private final SwerveRequest.RobotCentric robot;
 
-        // In RobotContainer.java
-
-        //private final AutoLock autoLock;
+        // SOTM auto-aim command
+        private final AutoLock autoLock;
 
         private final SendableChooser<Command> autoChooser;
 
@@ -66,12 +67,12 @@ public class RobotContainer {
                 joystick = new CommandXboxController(Constants.XboxController);
                 ButtonBoard = new ButtonBoardControls(Constants.ButtonBoard);
 
-                
-                
-                
+
+
+
                 Intake = new fuelintake(Constants.IntakeRoller, Constants.IntakePivot, Constants.INTAKECANID);
-                //Indexer = new Indexer(Constants.IndexerID);
-                //Vision = new vision();
+                Indexer = new Indexer(Constants.IndexerID);
+                Vision = new vision();
 
                 MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
                 MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
@@ -83,42 +84,85 @@ public class RobotContainer {
                                                                                                            // deadband
                                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-              //  robot = new SwerveRequest.RobotCentric()
-                               // .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10%
-                               // .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-                        /*
-                                autoLock = new AutoLock(
-                                drivetrain,
-                                () -> -joystick.getLeftY() * MaxSpeed,
-                                () -> -joystick.getLeftX() * MaxSpeed);
- */
+                // configure SOTM solver
+                shotCalculator = configureShotCalculator();
+
+                autoLock = new AutoLock(
+                        drivetrain,
+                        LeftShooter,
+                        RightShooter,
+                        Vision,
+                        shotCalculator,
+                        () -> -joystick.getLeftY() * MaxSpeed,
+                        () -> -joystick.getLeftX() * MaxSpeed);
+
                 configureBindings();
 
-                
+
 
         }
-        // private void namedCommands() {
 
-        // NamedCommands.registerCommand("INTAKE", Intake.INTAKE());
-        // NamedCommands.registerCommand("IDLE", Intake.IDLE());
-        // }
+        // SOTM solver config — tune these to match your robot
+        private ShotCalculator configureShotCalculator() {
+                ShotCalculator.Config config = new ShotCalculator.Config();
+                config.launcherOffsetX = 0.20;  // meters forward of center, measure from CAD
+                config.launcherOffsetY = 0.0;
+                config.minScoringDistance = 0.5;
+                config.maxScoringDistance = 5.0;
+                config.phaseDelayMs = 30.0;     // vision pipeline latency
+                config.mechLatencyMs = 50.0;    // flywheel spinup lag
+                config.sotmDragCoeff = 0.24;    // horizontal drag damping
+
+                ShotCalculator calc = new ShotCalculator(config);
+
+                // generate LUT from physics sim using robot measurements
+                var simParams = new ProjectileSimulator.SimParameters(
+                        0.215,    // ball mass kg (game manual)
+                        0.1501,   // ball diameter m (game manual)
+                        0.47,     // drag coeff (smooth sphere)
+                        0.2,      // Magnus coeff
+                        1.225,    // air density kg/m^3
+                        1.1346,   // exit height from floor (CAD)
+                        0.1016,   // flywheel wheel diameter (calipers)
+                        1.83,     // target height (game manual)
+                        0.6,      // slip factor (tune on robot) -> if overshoot lower it fr
+                        55.0,     // launch angle degrees
+                        0.001,    // sim timestep
+                        2000, 6000, 25, 5.0); // RPM range, search iters, max sim time
+
+                var sim = new ProjectileSimulator(simParams);
+                var lut = sim.generateLUT();
+
+                // load every reachable point into the SOTM solver
+                for (var entry : lut.entries()) {
+                        if (entry.reachable()) {
+                                calc.loadLUTEntry(entry.distanceM(), entry.rpm(), entry.tof());
+                        }
+                }
+
+                return calc;
+        }
+
         private void configureBindings() {
                 // change all mechanismz to gunner at comp, bring button boeard
 
-                // In configureBindings()
-                //joystick.rightBumper().toggleOnTrue(autoLock);
-                // joystick.rightTrigger().onTrue(LeftShooter.SHOOT(() -> Vision.getDistance())
-                //                 .alongWith(RightShooter.SHOOT(() -> Vision.getDistance()))
-                //                 .alongWith(Indexer.INDEX_IN()));
-                // joystick.leftBumper().onTrue(Intake.INTAKE());
-                // joystick.leftBumper().onFalse(Intake.IDLE());
-                
+                // SOTM auto-aim toggle on right bumper
+                joystick.rightBumper().toggleOnTrue(autoLock);
+
+                // shoot + index on right trigger
+                joystick.rightTrigger().onTrue(LeftShooter.SHOOT(() -> Vision.getDistance())
+                                .alongWith(RightShooter.SHOOT(() -> Vision.getDistance()))
+                                .alongWith(Indexer.INDEX_IN()));
+
+                // intake on left bumper
+                joystick.leftBumper().onTrue(Intake.INTAKE());
+                joystick.leftBumper().onFalse(Intake.IDLE());
+
                 ButtonBoard.Button7().onTrue(Intake.INTAKE()).onFalse(Intake.STOP());
                 ButtonBoard.Button8().onTrue(Intake.OUTTAKE()).onFalse(Intake.STOP());
                 ButtonBoard.Button12().onTrue(Intake.IDLE());
-                //ButtonBoard.Button11().toggleOnFalse(Indexer.INDEX_IDLE()).toggleOnTrue(Indexer.INDEXCYCLE());
- 
-                /* 
+                ButtonBoard.Button11().toggleOnFalse(Indexer.INDEX_IDLE()).toggleOnTrue(Indexer.INDEXCYCLE());
+
                 ButtonBoard.Button10().onTrue(LeftShooter.SET_PERCENTAGE(0.6)
                                 .alongWith(RightShooter.SET_PERCENTAGE(0.6)));
 
@@ -128,21 +172,7 @@ public class RobotContainer {
                 ButtonBoard.Button9().onTrue(LeftShooter.SET_PERCENTAGE(0.7)
                                 .alongWith(RightShooter.SET_PERCENTAGE(0.7)));
 
-                                */
                 joystick.b().onTrue(Commands.runOnce(() -> drivetrain.seedFieldCentric()));
-
-                // test shooter bindings
-                // joystick.rightTrigger().onTrue(LeftShooter.SETRPM(100)
-                // .alongWith(RightShooter.SETRPM(100)));
-
-                /*
-                 * joystick
-                 * .rightBumper()
-                 * .onTrue(
-                 * LeftShooter.SETRPM(50)
-                 * .alongWith(RightShooter.SETRPM(50)))
-                 * .onFalse(LeftShooter.SETRPM(0).alongWith(RightShooter.SETRPM(0)));;
-                 */
 
                 drivetrain.setDefaultCommand(
                                 // Drivetrain will execute this command periodically
@@ -173,32 +203,7 @@ public class RobotContainer {
                                 () -> point.withModuleDirection(
                                                 new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))));
 
-                // Run SysId routines when holding back/start and X/Y.
-                // Note that each routine should be run exactly once in a single log.
-                // joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-                // joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-                // joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-                // joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
-
-                // Reset the field-centric heading on left bumper press.
         }
-
-        // public Command getAutonomousCommand() {
-        // // Simple drive forward auton
-        // final var idle = new SwerveRequest.Idle();
-        // return Commands.sequence(
-        // // Reset our field centric heading to match the robot
-        // // facing away from our alliance station wall (0 deg).
-        // drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.kZero)),
-        // // Then slowly drive forward (away from us) for 5 seconds.
-        // drivetrain.applyRequest(() -> drive.withVelocityX(0.5)
-        // .withVelocityY(0)
-        // .withRotationalRate(0))
-        // .withTimeout(5.0),
-        // // Finally idle for the rest of auton
-        // drivetrain.applyRequest(() -> idle));
-
-        // }
 
         public Command autoCommand(){
                 return autoChooser.getSelected();

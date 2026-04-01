@@ -13,16 +13,28 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.firecontrol.ProjectileSimulator;
 
 public class shooter extends SubsystemBase {
     // two motors
     private TalonFX L, R;
     private InterpolatingDoubleTreeMap lut;
 
-    // TODO: add more points
+    // populate LUT from physics sim using robot measurements
     private void addPoints() {
-        // key -> distance (meters), value -> RPM
-        lut.put(1.0, 1000.0);
+        var simParams = new ProjectileSimulator.SimParameters(
+                0.215, 0.1501, 0.47, 0.2, 1.225,
+                1.1346, 0.1016, 1.83, 0.6, 55.0,
+                0.001, 2000, 6000, 25, 5.0);
+
+        var sim = new ProjectileSimulator(simParams);
+        var genLut = sim.generateLUT();
+
+        for (var entry : genLut.entries()) {
+            if (entry.reachable()) {
+                lut.put(entry.distanceM(), entry.rpm());
+            }
+        }
     }
 
     public shooter(int Left_Motor, int Right_Motor, boolean isInverted) {
@@ -91,6 +103,15 @@ public class shooter extends SubsystemBase {
     // supply with distance from vision in order to get correct RPM
     public Command SHOOT(DoubleSupplier distance) {
         return Commands.runOnce(() -> setRPM(lut.get(distance.getAsDouble())), this);
+    }
+
+    // direct RPM access for SOTM command (bypasses command scheduler)
+    public void setRPMDirect(double rpm) {
+        setRPM(rpm);
+    }
+
+    public Command STOP() {
+        return Commands.runOnce(() -> setPercent(0), this);
     }
 
 }
